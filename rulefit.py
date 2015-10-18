@@ -1,7 +1,21 @@
+"""Linear model of tree-based decision rules
+
+This method implement the RuleFit algorithm
+
+The module structure is the following:
+
+- ``RuleCondition`` implements a binary feature transformation
+- ``Rule`` implements a Rule composed of ``RuleCondition``s
+-
+
+"""
+
 import pandas as pd
 import numpy as np
 from sklearn.base import BaseEstimator
 from sklearn.base import TransformerMixin
+from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.linear_model import LassoCV
 
 class RuleCondition():
 
@@ -37,6 +51,9 @@ class RuleCondition():
 
 
 
+
+
+
 class Rule():
 
     def __init__(self, rule_conditions):
@@ -64,22 +81,25 @@ class Rule():
 
 
 
-## Brainstorm if you really need a class for that or if you do a function
+
+
+
+
 class RuleEnsemble():
 
-    def __init__(self, tree, feature_names=None):
-        self.tree = tree.tree_
+    def __init__(self, tree_list, feature_names=None):
+        self.tree_list = tree_list
         self.feature_names = feature_names
         self.rules = []
         self.extract_rules()
 
     def extract_rules(self):
-        self.traverse_nodes()
-        return self.rules
+        for tree in self.tree_list:
+            self.traverse_nodes(tree[0].tree_)
 
 
-    def traverse_nodes(self, node_id=0, operator=None, threshold=None, feature=None, conditions=[]):
-        ## add to self.rules. only for non-root nodes
+    def traverse_nodes(self, tree, node_id=0, operator=None, threshold=None, feature=None, conditions=[]):
+
         if node_id != 0:
             if self.feature_names is None:
                 feature_name = None
@@ -91,37 +111,23 @@ class RuleEnsemble():
             new_conditions = conditions  + [rule_condition]
             new_rule = Rule(new_conditions)
             self.rules.append(new_rule)
+
+
         else:
             new_conditions = []
 
         ## if not terminal node
-        if not self.tree.feature[node_id] == -2:
-            feature = self.tree.feature[node_id]
-            threshold = self.tree.threshold[node_id]
+        if not tree.feature[node_id] == -2:
+            feature = tree.feature[node_id]
+            threshold = tree.threshold[node_id]
 
-            left_node_id = self.tree.children_left[node_id]
-            self.traverse_nodes(left_node_id, "<=", threshold, feature, new_conditions)
+            left_node_id = tree.children_left[node_id]
+            self.traverse_nodes(tree, left_node_id, "<=", threshold, feature, new_conditions)
 
-            right_node_id = self.tree.children_right[node_id]
-            self.traverse_nodes(right_node_id, ">", threshold, feature, new_conditions)
+            right_node_id = tree.children_right[node_id]
+            self.traverse_nodes(tree, right_node_id, ">", threshold, feature, new_conditions)
         else:
             return None
-
-
-
-class RulesSet():
-
-    def __init__(self, trees_list, feature_names):
-        self.trees = trees_list
-        self.feature_names = feature_names
-        self.rules = []
-        self.traverse_trees()
-
-    def traverse_trees(self):
-        for tree in self.trees:
-            self.rules += RuleEnsemble(tree[0], feature_names = self.feature_names).extract_rules()
-        return None
-
 
     def filter_rules(self, func):
         self.rules = filter(lambda x: func(x), self.rules)
@@ -138,24 +144,74 @@ class RulesSet():
 
 
 
-class Rulefit(BaseEstimator, TransformerMixin):
+class RuleFit(BaseEstimator, TransformerMixin):
 
-    trees = []
-    rules = []
+    """Rulefit class"""
 
-    def __init__(self):
-        pass
+    def __init__(self,
+                 n_estimators=10,
+                 feature_names=None):
 
-    def get_params(self):
+        self.tree_generator = "GradientBoosting"
+        self.n_estimators = n_estimators
+        self.feature_names = feature_names
+
+    def get_params(self, deep=True):
         pass
 
     def set_params(self):
         pass
 
     def fit(self, X, y=None):
+
+        ## initialise tree generator
+        self.tree_generator = GradientBoostingRegressor(n_estimators=self.n_estimators)
+
+        ## fit tree generator
+        self.tree_generator.fit(X, y)
+
+        ## extract rules
+        self.rule_ensemble = RuleEnsemble(self.tree_generator.estimators_, feature_names=self.feature_names)
+
+        ## concatenate original features and rules
+        X_rules = self.rule_ensemble.transform(X)
+        X_concat = np.concatenate((X, X_rules), axis=1)
+
+        ## initialise Lasso
+        self.lscv = LassoCV()
+
+        ## fit Lasso
+        self.lscv.fit(X_concat, y)
         return self
 
+    def predict(self, X):
+        """Predict outcome for X
+        """
+
+        X_rules = self.rule_ensemble.transform(X)
+        X_concat = np.concatenate((X, X_rules), axis=1)
+
+        return self.lscv.predict(X_concat)
+
     def transform(self, X=None, y=None):
+        """Transform dataset.
+
+        Parameters
+        ----------
+        X : array-like matrix, shape=(n_samples, n_features)
+            Input data to be transformed. Use ``dtype=np.float32`` for maximum
+            efficiency.
+
+        Returns
+        -------
+        X_transformed: matrix, shape=(n_samples, n_out)
+            Transformed data set
+        """
+
+        ## Apply rules to X
+        ## concatenate X and rules_x
+        ## remove columns with beta == 0
+        ## return concatenated data set
         pass
 
     def fit_transform(self, X, y=None):
