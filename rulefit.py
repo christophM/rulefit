@@ -204,25 +204,27 @@ class RuleFit(BaseEstimator, TransformerMixin):
     n_estimators: integer, optional (default=10)
         The number of trees used for rule extraction
 
-    feature_names: list of strings, optional (default=None)
-        The names of the features (columns)
-
     Attributes
     ----------
     rule_ensemble: RuleEnsemble
         The rule ensemble
+
+    feature_names: list of strings, optional (default=None)
+        The names of the features (columns)
+
     """
     def __init__(self,
-                 n_estimators=10,
-                 feature_names=None):
-        ##TODO: Move feature_names to fit method
+                 n_estimators=10):
         ##TODO: Turn RuleFit into MetaEstimator and allow different tree-generating algorithms
         self.tree_generator = "GradientBoosting"
         self.n_estimators = n_estimators
-        self.feature_names = feature_names
 
 
-    def fit(self, X, y=None):
+    def fit(self, X, y=None, feature_names=None):
+        """Fit and estimate linear combination of rule ensemble
+
+        """
+        self.feature_names=feature_names
 
         ## initialise tree generator
         self.tree_generator = GradientBoostingRegressor(n_estimators=self.n_estimators)
