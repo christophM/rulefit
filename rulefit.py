@@ -61,6 +61,13 @@ class RuleCondition():
             res = 1 * (X[:,self.feature] > self.threshold)
         return res
 
+    def __eq__(self, other):
+        return self.__dict__ == other.__dict__
+
+    def __hash__(self):
+        return hash((self.feature, self.threshold, self.operator, self.feature_name))
+
+
 
 
 
@@ -71,7 +78,7 @@ class Rule():
     """
     def __init__(self,
                  rule_conditions):
-        self.conditions = rule_conditions
+        self.conditions = set(rule_conditions)
 
     def transform(self, X):
         """Transform dataset.
@@ -93,9 +100,8 @@ class Rule():
     def __repr__(self):
         return self.__str__()
 
-
-
-
+    def __hash__(self):
+        return sum([condition.__hash__() for condition in self.conditions])
 
 
 
@@ -124,7 +130,7 @@ class RuleEnsemble():
                  feature_names=None):
         self.tree_list = tree_list
         self.feature_names = feature_names
-        self.rules = []
+        self.rules = set()
         ## TODO: Move this out of __init__
         self._extract_rules()
 
@@ -148,9 +154,9 @@ class RuleEnsemble():
 
             rule_condition = RuleCondition(feature=feature, threshold=threshold, operator=operator, feature_name=feature_name)
             ## Create new Rule from old rule + new condition
-            new_conditions = conditions  + [rule_condition]
+            new_conditions  = conditions + [rule_condition]
             new_rule = Rule(new_conditions)
-            self.rules.append(new_rule)
+            self.rules.update([new_rule])
 
 
         else:
