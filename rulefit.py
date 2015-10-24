@@ -62,7 +62,7 @@ class RuleCondition():
         return res
 
     def __eq__(self, other):
-        return self.__dict__ == other.__dict__
+        return self.__hash__() == other.__hash__()
 
     def __hash__(self):
         return hash((self.feature, self.threshold, self.operator, self.feature_name))
@@ -102,6 +102,9 @@ class Rule():
 
     def __hash__(self):
         return sum([condition.__hash__() for condition in self.conditions])
+
+    def __eq__(self, other):
+        return self.__hash__() == other.__hash__()
 
 
 
