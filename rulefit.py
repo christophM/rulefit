@@ -221,13 +221,6 @@ class RuleFit(BaseEstimator, TransformerMixin):
         self.n_estimators = n_estimators
         self.feature_names = feature_names
 
-    def get_params(self, deep=True):
-        ##TODO
-        pass
-
-    def set_params(self):
-        ##TODO
-        pass
 
     def fit(self, X, y=None):
 
