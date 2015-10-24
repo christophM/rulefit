@@ -5,8 +5,9 @@ This method implement the RuleFit algorithm
 The module structure is the following:
 
 - ``RuleCondition`` implements a binary feature transformation
-- ``Rule`` implements a Rule composed of ``RuleCondition``s
--
+- ``Rule`` implements a Rule composed of ``RuleConditions``
+- ``RuleEnsemble`` implements an ensemble of ``Rules``
+- ``RuleFit`` implements the RuleFit algorithm
 
 """
 
@@ -18,17 +19,20 @@ from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.linear_model import LassoCV
 
 class RuleCondition():
+    """Class for binary rule condition
 
-    def __init__(self, feature, threshold, operator, feature_name = None):
+    Warning: this class should not be used directly.
+    """
+
+    def __init__(self,
+                 feature,
+                 threshold,
+                 operator,
+                 feature_name = None):
         self.feature = feature
         self.threshold = threshold
         self.operator = operator
         self.feature_name = feature_name
-        if operator == "<=":
-            self.func = lambda x: int(x <= self.threshold)
-        elif operator == ">":
-            self.func = lambda x: int(x > self.threshold)
-
 
     def __repr__(self):
         return self.__str__()
@@ -41,6 +45,16 @@ class RuleCondition():
         return "%s %s %s" % (feature, self.operator, self.threshold)
 
     def transform(self, X):
+        """Transform dataset.
+
+        Parameters
+        ----------
+        X: array-like matrix, shape=(n_samples, n_features)
+
+        Returns
+        -------
+        X_transformed: array-like matrix, shape=(n_samples, 1)
+        """
         if self.operator == "<=":
             res =  1 * (X[:,self.feature] <= self.threshold)
         elif self.operator == ">":
@@ -50,32 +64,33 @@ class RuleCondition():
 
 
 
-
-
-
-
 class Rule():
+    """Class for binary Rules from list of conditions
 
-    def __init__(self, rule_conditions):
+    Warning: this class should not be used directly.
+    """
+    def __init__(self,
+                 rule_conditions):
         self.conditions = rule_conditions
 
-    def transform(self, features):
-        rule_applies = [x.transform(features) for x in self.conditions]
-        return np.prod(rule_applies)
-
     def transform(self, X):
-        applied_conditions = map(lambda x: x.transform(X), self.conditions)
-        return reduce(lambda x,y: x * y, applied_conditions)
+        """Transform dataset.
 
+        Parameters
+        ----------
+        X: array-like matrix
 
-    def emit_rules(self):
-        ## build short rules
-        return [self] + [Rule(self.conditions[:-x]) for x in range(1, len(self.conditions))]
+        Returns
+        -------
+        X_transformed: array-like matrix, shape=(n_samples, 1)
+        """
+        rule_applies = [condition.transform(X) for condition in self.conditions]
+        return reduce(lambda x,y: x * y, rule_applies)
 
     def __str__(self):
         return  " & ".join([x.__str__() for x in self.conditions])
 
-    def __repre__(self):
+    def __repr__(self):
         return self.__str__()
 
 
@@ -86,20 +101,45 @@ class Rule():
 
 
 class RuleEnsemble():
+    """Ensemble of binary decision rules
 
-    def __init__(self, tree_list, feature_names=None):
+    This class implements an ensemble of decision rules that extracts rules from
+    an ensemble of decision trees.
+
+    Parameters
+    ----------
+    tree_list: List or array of DecisionTreeClassifier or DecisionTreeRegressor
+        Trees from which the rules are created
+
+    feature_names: List of strings, optional (default=None)
+        Names of the features
+
+    Attributes
+    ----------
+    rules: List of Rule
+        The ensemble of rules extracted from the trees
+    """
+    def __init__(self,
+                 tree_list,
+                 feature_names=None):
         self.tree_list = tree_list
         self.feature_names = feature_names
         self.rules = []
-        self.extract_rules()
+        ## TODO: Move this out of __init__
+        self._extract_rules()
 
-    def extract_rules(self):
+    def _extract_rules(self):
+        """Recursively extract rules from each tree in the ensemble
+
+        """
         for tree in self.tree_list:
-            self.traverse_nodes(tree[0].tree_)
+            self._traverse_nodes(tree[0].tree_)
 
 
-    def traverse_nodes(self, tree, node_id=0, operator=None, threshold=None, feature=None, conditions=[]):
+    def _traverse_nodes(self, tree, node_id=0, operator=None, threshold=None, feature=None, conditions=[]):
+        """Extract rule in node
 
+        """
         if node_id != 0:
             if self.feature_names is None:
                 feature_name = None
@@ -122,10 +162,10 @@ class RuleEnsemble():
             threshold = tree.threshold[node_id]
 
             left_node_id = tree.children_left[node_id]
-            self.traverse_nodes(tree, left_node_id, "<=", threshold, feature, new_conditions)
+            self._traverse_nodes(tree, left_node_id, "<=", threshold, feature, new_conditions)
 
             right_node_id = tree.children_right[node_id]
-            self.traverse_nodes(tree, right_node_id, ">", threshold, feature, new_conditions)
+            self._traverse_nodes(tree, right_node_id, ">", threshold, feature, new_conditions)
         else:
             return None
 
@@ -136,6 +176,17 @@ class RuleEnsemble():
         self.filter_rules(lambda x: len(x.conditions) > k)
 
     def transform(self, X):
+        """Transform dataset.
+
+        Parameters
+        ----------
+        X: array-like matrix, shape=(n_samples, n_features)
+
+        Returns
+        -------
+        X_transformed: array-like matrix, shape=(n_samples, n_out)
+            Transformed dataset. Each column represents one rule.
+        """
         return np.array([rule.transform(X) for rule in self.rules]).T
 
     def __str__(self):
@@ -145,21 +196,37 @@ class RuleEnsemble():
 
 
 class RuleFit(BaseEstimator, TransformerMixin):
+    """Rulefit class
 
-    """Rulefit class"""
 
+    Parameters
+    ----------
+    n_estimators: integer, optional (default=10)
+        The number of trees used for rule extraction
+
+    feature_names: list of strings, optional (default=None)
+        The names of the features (columns)
+
+    Attributes
+    ----------
+    rule_ensemble: RuleEnsemble
+        The rule ensemble
+    """
     def __init__(self,
                  n_estimators=10,
                  feature_names=None):
-
+        ##TODO: Move feature_names to fit method
+        ##TODO: Turn RuleFit into MetaEstimator and allow different tree-generating algorithms
         self.tree_generator = "GradientBoosting"
         self.n_estimators = n_estimators
         self.feature_names = feature_names
 
     def get_params(self, deep=True):
+        ##TODO
         pass
 
     def set_params(self):
+        ##TODO
         pass
 
     def fit(self, X, y=None):
@@ -186,6 +253,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
 
     def predict(self, X):
         """Predict outcome for X
+
         """
 
         X_rules = self.rule_ensemble.transform(X)
@@ -207,7 +275,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
         X_transformed: matrix, shape=(n_samples, n_out)
             Transformed data set
         """
-
+        ##TODO
         ## Apply rules to X
         ## concatenate X and rules_x
         ## remove columns with beta == 0
@@ -215,4 +283,6 @@ class RuleFit(BaseEstimator, TransformerMixin):
         pass
 
     def fit_transform(self, X, y=None):
+        ## TODO
         pass
+
