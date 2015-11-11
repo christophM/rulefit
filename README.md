@@ -1,5 +1,5 @@
 # rulefit
-Implementation of a rule based prediction and classification algorithm based on [the rulefit algorithm from Friedman and Popescu]](http://statweb.stanford.edu/~jhf/ftp/RuleFit.pdf)
+Implementation of a rule based prediction and classification algorithm based on [the rulefit algorithm from Friedman and Popescu](http://statweb.stanford.edu/~jhf/ftp/RuleFit.pdf)
 
 
 Work in progress.
