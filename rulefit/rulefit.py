@@ -10,7 +10,6 @@ The module structure is the following:
 - ``RuleFit`` implements the RuleFit algorithm
 
 """
-
 import pandas as pd
 import numpy as np
 from sklearn.base import BaseEstimator
@@ -25,14 +24,17 @@ class RuleCondition():
     """
 
     def __init__(self,
-                 feature,
+                 feature_index,
                  threshold,
                  operator,
+                 support,
                  feature_name = None):
-        self.feature = feature
+        self.feature_index = feature_index
         self.threshold = threshold
         self.operator = operator
+        self.support = support
         self.feature_name = feature_name
+
 
     def __repr__(self):
         return self.__str__()
@@ -41,7 +43,7 @@ class RuleCondition():
         if self.feature_name:
             feature = self.feature_name
         else:
-            feature = self.feature
+            feature = self.feature_index
         return "%s %s %s" % (feature, self.operator, self.threshold)
 
     def transform(self, X):
@@ -56,18 +58,16 @@ class RuleCondition():
         X_transformed: array-like matrix, shape=(n_samples, 1)
         """
         if self.operator == "<=":
-            res =  1 * (X[:,self.feature] <= self.threshold)
+            res =  1 * (X[:,self.feature_index] <= self.threshold)
         elif self.operator == ">":
-            res = 1 * (X[:,self.feature] > self.threshold)
+            res = 1 * (X[:,self.feature_index] > self.threshold)
         return res
 
     def __eq__(self, other):
         return self.__hash__() == other.__hash__()
 
     def __hash__(self):
-        return hash((self.feature, self.threshold, self.operator, self.feature_name))
-
-
+        return hash((self.feature_index, self.threshold, self.operator, self.feature_name))
 
 
 
@@ -79,6 +79,7 @@ class Rule():
     def __init__(self,
                  rule_conditions):
         self.conditions = set(rule_conditions)
+        self.support = min([x.support for x in rule_conditions])
 
     def transform(self, X):
         """Transform dataset.
@@ -106,6 +107,46 @@ class Rule():
     def __eq__(self, other):
         return self.__hash__() == other.__hash__()
 
+
+def extract_rules_from_tree(tree, feature_names=None):
+    """Helper to turn a tree into as set of rules
+    """
+    rules = set()
+
+    def traverse_nodes(node_id=0,
+                       operator=None,
+                       threshold=None,
+                       feature=None,
+                       conditions=[]):
+        if node_id != 0:
+            if feature_names is not None:
+                feature_name = feature_names[feature]
+            rule_condition = RuleCondition(feature_index=feature,
+                                           threshold=threshold,
+                                           operator=operator,
+                                           support = tree.n_node_samples[node_id] / float(tree.n_node_samples[0]),
+                                           feature_name=feature_name)
+            new_conditions = conditions + [rule_condition]
+            new_rule = Rule(new_conditions)
+            rules.update([new_rule])
+        else:
+            new_conditions = []
+                ## if not terminal node
+        if not tree.feature[node_id] == -2:
+            feature = tree.feature[node_id]
+            threshold = tree.threshold[node_id]
+
+            left_node_id = tree.children_left[node_id]
+            traverse_nodes(left_node_id, "<=", threshold, feature, new_conditions)
+
+            right_node_id = tree.children_right[node_id]
+            traverse_nodes(right_node_id, ">", threshold, feature, new_conditions)
+        else:
+            return None
+
+    traverse_nodes()
+
+    return rules
 
 
 
@@ -142,20 +183,29 @@ class RuleEnsemble():
 
         """
         for tree in self.tree_list:
-            self._traverse_nodes(tree[0].tree_)
+            rules = extract_rules_from_tree(tree[0].tree_,feature_names=self.feature_names)
+            self.rules.update(rules)
 
 
-    def _traverse_nodes(self, tree, node_id=0, operator=None, threshold=None, feature=None, conditions=[]):
+    def _traverse_nodes(self,
+                        tree,
+                        node_id=0,
+                        operator=None,
+                        threshold=None,
+                        feature=None,
+                        conditions=[]):
         """Extract rule in node
 
         """
         if node_id != 0:
-            if self.feature_names is None:
-                feature_name = None
-            else:
+            if self.feature_names is not None:
                 feature_name = self.feature_names[feature]
 
-            rule_condition = RuleCondition(feature=feature, threshold=threshold, operator=operator, feature_name=feature_name)
+            rule_condition = RuleCondition(feature_index=feature,
+                                           threshold=threshold,
+                                           operator=operator,
+                                           support = tree.n_node_samples[node_id] / float(tree.n_node_samples[0]),
+                                           feature_name=feature_name)
             ## Create new Rule from old rule + new condition
             new_conditions  = conditions + [rule_condition]
             new_rule = Rule(new_conditions)
@@ -240,7 +290,8 @@ class RuleFit(BaseEstimator, TransformerMixin):
         self.tree_generator.fit(X, y)
 
         ## extract rules
-        self.rule_ensemble = RuleEnsemble(self.tree_generator.estimators_, feature_names=self.feature_names)
+        self.rule_ensemble = RuleEnsemble(self.tree_generator.estimators_,
+                                          feature_names=self.feature_names)
 
         ## concatenate original features and rules
         X_rules = self.rule_ensemble.transform(X)
@@ -277,14 +328,6 @@ class RuleFit(BaseEstimator, TransformerMixin):
         X_transformed: matrix, shape=(n_samples, n_out)
             Transformed data set
         """
-        ##TODO
-        ## Apply rules to X
-        ## concatenate X and rules_x
-        ## remove columns with beta == 0
-        ## return concatenated data set
-        pass
+        return self.rule_ensemble.transform(X)
 
-    def fit_transform(self, X, y=None):
-        ## TODO
-        pass
 
