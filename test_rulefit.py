@@ -54,3 +54,6 @@ def test_rule_equality():
 ## - Test filter short rules
 ## - Test transform function
 
+## RuleFit
+## - Throw value error when tree generator wrong class
+## -

@@ -14,7 +14,7 @@ import pandas as pd
 import numpy as np
 from sklearn.base import BaseEstimator
 from sklearn.base import TransformerMixin
-from sklearn.ensemble import GradientBoostingRegressor
+from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier, RandomForestRegressor, RandomForestClassifier
 from sklearn.linear_model import LassoCV
 
 class RuleCondition():
@@ -244,11 +244,21 @@ class RuleFit(BaseEstimator, TransformerMixin):
         if self.tree_generator is None:
             self.tree_generator = GradientBoostingRegressor()
 
+        if type(self.tree_generator) not in [GradientBoostingRegressor,
+                                             GradientBoostingClassifier,
+                                             RandomForestRegressor,
+                                             RandomForestClassifier]:
+            raise ValueError("RuleFit only works with RandomForest and BoostingRegressor")
+        ## TODO: Error if tree generator not GB nor RF
+
         ## fit tree generator
         self.tree_generator.fit(X, y)
 
+        tree_list = self.tree_generator.estimators_
+        if isinstance(self.tree_generator, RandomForestRegressor) or isinstance(self.tree_generator, RandomForestClassifier):
+             tree_list = [[x] for x in self.tree_generator.estimators_]
         ## extract rules
-        self.rule_ensemble = RuleEnsemble(self.tree_generator.estimators_,
+        self.rule_ensemble = RuleEnsemble(tree_list = tree_list,
                                           feature_names=self.feature_names)
 
         ## concatenate original features and rules
