@@ -186,48 +186,6 @@ class RuleEnsemble():
             rules = extract_rules_from_tree(tree[0].tree_,feature_names=self.feature_names)
             self.rules.update(rules)
 
-
-    def _traverse_nodes(self,
-                        tree,
-                        node_id=0,
-                        operator=None,
-                        threshold=None,
-                        feature=None,
-                        conditions=[]):
-        """Extract rule in node
-
-        """
-        if node_id != 0:
-            if self.feature_names is not None:
-                feature_name = self.feature_names[feature]
-
-            rule_condition = RuleCondition(feature_index=feature,
-                                           threshold=threshold,
-                                           operator=operator,
-                                           support = tree.n_node_samples[node_id] / float(tree.n_node_samples[0]),
-                                           feature_name=feature_name)
-            ## Create new Rule from old rule + new condition
-            new_conditions  = conditions + [rule_condition]
-            new_rule = Rule(new_conditions)
-            self.rules.update([new_rule])
-
-
-        else:
-            new_conditions = []
-
-        ## if not terminal node
-        if not tree.feature[node_id] == -2:
-            feature = tree.feature[node_id]
-            threshold = tree.threshold[node_id]
-
-            left_node_id = tree.children_left[node_id]
-            self._traverse_nodes(tree, left_node_id, "<=", threshold, feature, new_conditions)
-
-            right_node_id = tree.children_right[node_id]
-            self._traverse_nodes(tree, right_node_id, ">", threshold, feature, new_conditions)
-        else:
-            return None
-
     def filter_rules(self, func):
         self.rules = filter(lambda x: func(x), self.rules)
 
