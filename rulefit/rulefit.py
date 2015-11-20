@@ -121,6 +121,8 @@ def extract_rules_from_tree(tree, feature_names=None):
         if node_id != 0:
             if feature_names is not None:
                 feature_name = feature_names[feature]
+            else:
+                feature_name = feature
             rule_condition = RuleCondition(feature_index=feature,
                                            threshold=threshold,
                                            operator=operator,
@@ -297,5 +299,14 @@ class RuleFit(BaseEstimator, TransformerMixin):
             Transformed data set
         """
         return self.rule_ensemble.transform(X)
+
+    def get_rules(self):
+        n_features= len(self.lscv.coef_) - len(self.rule_ensemble.rules)
+        rule_ensemble = list(self.rule_ensemble.rules)
+        output_rules = []
+        for i in range(0, len(self.rule_ensemble.rules) - 1):
+            rule = rule_ensemble[i]
+            output_rules += [(rule.__str__(), self.lscv.coef_[i + n_features], rule.support)]
+        return pd.DataFrame(output_rules, columns=["rule", "coef", "support"])
 
 
