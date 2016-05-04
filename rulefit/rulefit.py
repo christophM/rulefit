@@ -265,7 +265,11 @@ class RuleFit(BaseEstimator, TransformerMixin):
 
         ## concatenate original features and rules
         X_rules = self.rule_ensemble.transform(X)
-        X_concat = np.concatenate((X, X_rules), axis=1)
+        ## No rules found
+        if X_rules.shape[0] == 0:
+            X_concat = X
+        else:
+            X_concat = np.concatenate((X, X_rules), axis=1)
 
         ## initialise Lasso
         self.lscv = LassoCV()
