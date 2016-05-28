@@ -12,6 +12,16 @@ the output target but at the same time estimating many of those effects to zero.
 You can use rulefit for predicting a numeric response (categorial not yet implemented).
 The input has to be a numpy matrix with only numeric values.
 
+## Installation
+
+The latest version can be installed from the master branch using pip:
+
+```
+pip install git+git://github.com/christophM/rulefit.git
+```
+
+Another option is to clone the repository and install using `python setup.py install` or `python setup.py develop`.
+
 ## Usage
 
 ### Train your model:
