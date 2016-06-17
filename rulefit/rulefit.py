@@ -240,7 +240,11 @@ class RuleFit(BaseEstimator, TransformerMixin):
         """Fit and estimate linear combination of rule ensemble
 
         """
-        self.feature_names=feature_names
+        ## Enumerate features if feature names not provided
+        if feature_names is None:
+            self.feature_names = ['feature_' + str(x) for x in range(0, X.shape[1])]
+        else:
+            self.feature_names=feature_names
 
         ## initialise tree generator
         if self.tree_generator is None:
@@ -323,14 +327,10 @@ class RuleFit(BaseEstimator, TransformerMixin):
         rule_ensemble = list(self.rule_ensemble.rules)
         output_rules = []
         ## Add coefficients for linear effects
-        if self.feature_names is None:
-            feature_names = range(0, n_features)
-        else:
-            feature_names = self.feature_names
-        for i in range(0, n_features - 1):
-            output_rules += [(feature_names[i], 'linear', self.lscv.coef_[i], 1)]
+        for i in range(0, n_features):
+            output_rules += [(self.feature_names[i], 'linear', self.lscv.coef_[i], 1)]
         ## Add rules
-        for i in range(0, len(self.rule_ensemble.rules) - 1):
+        for i in range(0, len(self.rule_ensemble.rules)):
             rule = rule_ensemble[i]
             output_rules += [(rule.__str__(), 'rule', self.lscv.coef_[i + n_features],  rule.support)]
         rules = pd.DataFrame(output_rules, columns=["rule", "type","coef", "support"])
