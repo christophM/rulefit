@@ -305,13 +305,35 @@ class RuleFit(BaseEstimator, TransformerMixin):
         return self.rule_ensemble.transform(X)
 
     def get_rules(self, exclude_zero_coef=True):
+        """Return the estimated rules
+
+        Parameters
+        ----------
+        exclude_zero_coef: If True (default), returns only the rules with an estimated
+                           coefficient not equalt to  zero.
+
+        Returns
+        -------
+        rules: pandas.DataFrame with the rules. Column 'rule' describes the rule, 'coef' holds
+               the coefficients and 'support' the support of the rule in the training
+               data set (X)
+        """
+
         n_features= len(self.lscv.coef_) - len(self.rule_ensemble.rules)
         rule_ensemble = list(self.rule_ensemble.rules)
         output_rules = []
+        ## Add coefficients for linear effects
+        if self.feature_names is None:
+            feature_names = range(0, n_features)
+        else:
+            feature_names = self.feature_names
+        for i in range(0, n_features - 1):
+            output_rules += [(feature_names[i], 'linear', self.lscv.coef_[i], 1)]
+        ## Add rules
         for i in range(0, len(self.rule_ensemble.rules) - 1):
             rule = rule_ensemble[i]
-            output_rules += [(rule.__str__(), self.lscv.coef_[i + n_features], rule.support)]
-        rules = pd.DataFrame(output_rules, columns=["rule", "coef", "support"])
+            output_rules += [(rule.__str__(), 'rule', self.lscv.coef_[i + n_features],  rule.support)]
+        rules = pd.DataFrame(output_rules, columns=["rule", "type","coef", "support"])
         if exclude_zero_coef:
             rules = rules.ix[rules.coef != 0]
         return rules
