@@ -304,13 +304,16 @@ class RuleFit(BaseEstimator, TransformerMixin):
         """
         return self.rule_ensemble.transform(X)
 
-    def get_rules(self):
+    def get_rules(self, exclude_zero_coef=True):
         n_features= len(self.lscv.coef_) - len(self.rule_ensemble.rules)
         rule_ensemble = list(self.rule_ensemble.rules)
         output_rules = []
         for i in range(0, len(self.rule_ensemble.rules) - 1):
             rule = rule_ensemble[i]
             output_rules += [(rule.__str__(), self.lscv.coef_[i + n_features], rule.support)]
-        return pd.DataFrame(output_rules, columns=["rule", "coef", "support"])
+        rules = pd.DataFrame(output_rules, columns=["rule", "coef", "support"])
+        if exclude_zero_coef:
+            rules = rules.ix[rules.coef != 0]
+        return rules
 
 
