@@ -81,6 +81,6 @@ print rules
 ## Changelog
 All notable changes to this project will be documented here.
 
-### v0.1 18.06.2016
+### [v0.1] - 2016-06-18
 - Start changelog and versions
 
