@@ -78,3 +78,9 @@ print rules
 - This implementation is in progress. If you find a bug, don't hesitate to contact me.
 
 
+## Changelog
+All notable changes to this project will be documented here.
+
+### v0.1 18.06.2016
+- Start changelog and versions
+
