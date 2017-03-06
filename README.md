@@ -1,5 +1,5 @@
 # RuleFit
-Implementation of a rule based prediction algorithm based on [the rulefit algorithm from Friedman and Popescu](http://statweb.stanford.edu/~jhf/ftp/RuleFit.pdf)
+Implementation of a rule based prediction algorithm based on [the rulefit algorithm from Friedman and Popescu (PDF)](http://statweb.stanford.edu/~jhf/ftp/RuleFit.pdf)
 
 The algorithm can be used for predicting an output vector y given an input matrix X. In the first
 step a tree ensemble is generated with gradient boosting. The trees are then used to form
@@ -77,10 +77,8 @@ print rules
   In the original implementation the maximum depth of the tree are drawn from a distribution each time
 - This implementation is in progress. If you find a bug, don't hesitate to contact me.
 
-
 ## Changelog
 All notable changes to this project will be documented here.
 
 ### [v0.1] - 2016-06-18
 - Start changelog and versions
-
