@@ -16,6 +16,7 @@ from sklearn.base import BaseEstimator
 from sklearn.base import TransformerMixin
 from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier, RandomForestRegressor, RandomForestClassifier
 from sklearn.linear_model import LassoCV
+from functools import reduce
 
 class RuleCondition():
     """Class for binary rule condition
@@ -337,5 +338,3 @@ class RuleFit(BaseEstimator, TransformerMixin):
         if exclude_zero_coef:
             rules = rules.ix[rules.coef != 0]
         return rules
-
-
