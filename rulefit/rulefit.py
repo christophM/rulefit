@@ -15,31 +15,12 @@ import numpy as np
 from sklearn.base import BaseEstimator
 from sklearn.base import TransformerMixin
 from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier, RandomForestRegressor, RandomForestClassifier
-from sklearn.linear_model import LassoCV
+from sklearn.linear_model import LassoCV,LogisticRegressionCV
 from functools import reduce
-import  scipy 
-import cvglmnet
-import cvglmnetCoef
-import cvglmnetPlot
-import cvglmnetPredict
 
-class GLMCV():
-    def __init__(self,family='gaussian'):
-        self.cvfit=None
-        self.family=family
-       
-    def fit(self,x,y):        
-        cv_loss='class' if self.family=='binomial' else 'deviance'
-        coef_limits=scipy.array([[scipy.float64(-scipy.inf)], [scipy.float64(scipy.inf)]]) # default, no limits on coefs
 
-        self.cvfit = cvglmnet.cvglmnet(x = x.copy(), y = y.copy(), nfolds=5,family = self.family, ptype = cv_loss, nlambda = 20,intr=True,cl=coef_limits)
-        coef=cvglmnetCoef.cvglmnetCoef(self.cvfit, s = 'lambda_min')
-        self.coef_=coef[1:,0]
-        self.intercept_=coef[0,0]
-    def predict(self,x):
-        return cvglmnetPredict.cvglmnetPredict(self.cvfit, newx = x, s = 'lambda_min', ptype = 'class')
-        
-   
+
+
 
 class RuleCondition():
     """Class for binary rule condition
@@ -271,7 +252,7 @@ class RuleEnsemble():
             Transformed dataset. Each column represents one rule.
         """
         rule_list=list(self.rules) 
-        if   coefs is None:
+        if   coefs is None :
             return np.array([rule.transform(X) for rule in rule_list]).T
         else: # else use the coefs to filter the rules we bother to interpret
             res= np.array([rule_list[i_rule].transform(X) for i_rule in np.arange(len(rule_list)) if coefs[i_rule]!=0]).T
@@ -423,14 +404,19 @@ class RuleFit(BaseEstimator, TransformerMixin):
             if X_rules.shape[0] >0:
                 X_concat = np.concatenate((X_concat, X_rules), axis=1)
 
-        ## initialise Lasso
-        if self.rfmode=='regress':
-            self.lscv = LassoCV()
-        else:
-            self.lscv=GLMCV(family='binomial')
-        
         ## fit Lasso
-        self.lscv.fit(X_concat, y)
+        if self.rfmode=='regress':
+            self.lscv = LassoCV(random_state=self.random_state)
+            self.lscv.fit(X_concat, y)
+            self.coef_=self.lscv.coef_
+            self.intercept_=self.lscv.intercept_
+        else:
+            self.lscv=LogisticRegressionCV(cv=3,penalty='l1',random_state=self.random_state,solver='liblinear')
+            self.lscv.fit(X_concat, y)
+            self.coef_=self.lscv.coef_[0]
+            self.intercept_=self.lscv.intercept_[0]
+        
+        
         
         return self
 
@@ -445,10 +431,11 @@ class RuleFit(BaseEstimator, TransformerMixin):
             else:
                 X_concat = np.concatenate((X_concat,X), axis=1)
         if 'r' in self.model_type:
-            rule_coefs=self.lscv.coef_[X.shape[1]:]
-            X_rules = self.rule_ensemble.transform(X,coefs=rule_coefs)
-            if X_rules.shape[0] >0:
-                X_concat = np.concatenate((X_concat, X_rules), axis=1)
+            rule_coefs=self.coef_[X.shape[1]:] 
+            if len(rule_coefs)>0:
+                X_rules = self.rule_ensemble.transform(X,coefs=rule_coefs)
+                if X_rules.shape[0] >0:
+                    X_concat = np.concatenate((X_concat, X_rules), axis=1)
         return self.lscv.predict(X_concat)
 
     def transform(self, X=None, y=None):
@@ -482,20 +469,20 @@ class RuleFit(BaseEstimator, TransformerMixin):
                data set (X)
         """
 
-        n_features= len(self.lscv.coef_) - len(self.rule_ensemble.rules)
+        n_features= len(self.coef_) - len(self.rule_ensemble.rules)
         rule_ensemble = list(self.rule_ensemble.rules)
         output_rules = []
         ## Add coefficients for linear effects
         for i in range(0, n_features):
             if self.lin_standardise:
-                coef=self.lscv.coef_[i ]*self.friedscale.scale_multipliers[i]
+                coef=self.coef_[i ]*self.friedscale.scale_multipliers[i]
             else:
-                coef=self.lscv.coef_[i ]
+                coef=self.coef_[i ]
             output_rules += [(self.feature_names[i], 'linear',coef, 1)]
         ## Add rules
         for i in range(0, len(self.rule_ensemble.rules)):
             rule = rule_ensemble[i]
-            coef=self.lscv.coef_[i + n_features]
+            coef=self.coef_[i + n_features]
             output_rules += [(rule.__str__(), 'rule', coef,  rule.support)]
         rules = pd.DataFrame(output_rules, columns=["rule", "type","coef", "support"])
         if exclude_zero_coef:
