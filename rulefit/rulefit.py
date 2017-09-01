@@ -24,22 +24,14 @@ import cvglmnetPlot
 import cvglmnetPredict
 
 class GLMCV():
-    def __init__(self,family='gaussian',incr_feats=None,decr_feats=None):
+    def __init__(self,family='gaussian'):
         self.cvfit=None
         self.family=family
-        self.incr_feats=np.asarray([]) if incr_feats is None else np.asarray(incr_feats)
-        self.decr_feats=np.asarray([]) if decr_feats is None else np.asarray(decr_feats)
-
+       
     def fit(self,x,y):        
         cv_loss='class' if self.family=='binomial' else 'deviance'
         coef_limits=scipy.array([[scipy.float64(-scipy.inf)], [scipy.float64(scipy.inf)]]) # default, no limits on coefs
-        # set up constraints
-        if  len( self.incr_feats)>0 or  len(self.decr_feats)>0 :
-            coef_limits=np.zeros([2,x.shape[1]])
-            for i_feat in np.arange(x.shape[1]):
-                coef_limits[0,i_feat]=-np.inf if i_feat not in self.incr_feats-1 else 0.
-                coef_limits[1,i_feat]=np.inf if i_feat not in self.decr_feats-1 else 0.
-            coef_limits=scipy.array(coef_limits)
+
         self.cvfit = cvglmnet.cvglmnet(x = x.copy(), y = y.copy(), nfolds=5,family = self.family, ptype = cv_loss, nlambda = 20,intr=True,cl=coef_limits)
         coef=cvglmnetCoef.cvglmnetCoef(self.cvfit, s = 'lambda_min')
         self.coef_=coef[1:,0]
@@ -311,16 +303,11 @@ class RuleFit(BaseEstimator, TransformerMixin):
     """
     def __init__(self,tree_size=4,sample_fract='default',max_rules=2000,
                  memory_par=0.01,
-                 tree_generator=None,n_feats=None,incr_feats=[],decr_feats=[],
+                 tree_generator=None,n_feats=None,
                 rfmode='regress',lin_trim_quantile=0.025,
                 lin_standardise=True, exp_rand_tree_size=True,
                 model_type='rl',random_state=None):
         self.tree_generator = tree_generator
-        self.n_feats=n_feats
-        self.incr_feats=np.asarray([] if incr_feats is None else incr_feats)
-        self.decr_feats=np.asarray([] if decr_feats is None else decr_feats)
-        self.mt_feats=np.asarray(list(self.incr_feats)+list(self.decr_feats))
-        self.nmt_feats=np.asarray([j for j in np.arange(n_feats)+1 if j not in self.mt_feats])
         self.rfmode=rfmode
         self.lin_trim_quantile=lin_trim_quantile
         self.lin_standardise=lin_standardise
@@ -396,19 +383,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
             ## extract rules
             self.rule_ensemble = RuleEnsemble(tree_list = tree_list,
                                               feature_names=self.feature_names)
-            ## filter for upper and lower rules only (if needed)
-            self.num_rules_peak_=len(self.rule_ensemble.rules)
-            if len(self.mt_feats)>0: 
-                filtered_rules=set()
-                for rule in self.rule_ensemble.rules:
-                    conditions=list(rule.conditions)
-                    all_incr=np.all([conditions[c].operator[0]==('>' if conditions[c].feature_index in self.incr_feats-1 else '<') for c in [cc for cc in np.arange(len(conditions)) if conditions[cc].feature_index in self.mt_feats-1]])
-                    all_decr=np.all([conditions[c].operator[0]==('<' if conditions[c].feature_index in self.incr_feats-1 else '>') for c in [cc for cc in np.arange(len(conditions)) if conditions[cc].feature_index in self.mt_feats-1]])
-                    if (all_incr and rule.value>0) or (all_decr and rule.value<0):
-                        rule.rule_direction=+1 if all_incr else -1
-                        filtered_rules.add(rule)
-                #print('started with ' + str(len(self.rule_ensemble.rules)) + ' rules, now have ' + str(len(filtered_rules)))
-                self.rule_ensemble.rules=list(filtered_rules)
+
             ## concatenate original features and rules
             X_rules = self.rule_ensemble.transform(X)
         
@@ -429,20 +404,11 @@ class RuleFit(BaseEstimator, TransformerMixin):
                 X_concat = np.concatenate((X_concat, X_rules), axis=1)
 
         ## initialise Lasso
-        if len(self.mt_feats)==0:
-            if self.rfmode=='regress':
-                self.lscv = LassoCV()
-            else:
-                self.lscv=GLMCV(family='binomial')
+        if self.rfmode=='regress':
+            self.lscv = LassoCV()
         else:
-            rule_dirns=np.asarray([r.rule_direction for r in self.rule_ensemble.rules])
-            incr_feats_with_rules=np.asarray(np.hstack([self.incr_feats,self.n_feats+np.asarray([i_rule+1 for i_rule in np.arange(len(rule_dirns)) if rule_dirns[i_rule]>0])]))
-            decr_feats_with_rules=np.asarray(np.hstack([self.decr_feats,self.n_feats+np.asarray([i_rule+1 for i_rule in np.arange(len(rule_dirns)) if rule_dirns[i_rule]<0])]))
-            if self.rfmode=='regress':
-                self.lscv=GLMCV(family='gaussian',incr_feats=incr_feats_with_rules,decr_feats=decr_feats_with_rules)
-            else:
-                self.lscv=GLMCV(family='binomial',incr_feats=incr_feats_with_rules,decr_feats=decr_feats_with_rules)
-
+            self.lscv=GLMCV(family='binomial')
+        
         ## fit Lasso
         self.lscv.fit(X_concat, y)
         
@@ -459,7 +425,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
             else:
                 X_concat = np.concatenate((X_concat,X), axis=1)
         if 'r' in self.model_type:
-            rule_coefs=self.lscv.coef_[self.n_feats:]
+            rule_coefs=self.lscv.coef_[X.shape[1]:]
             X_rules = self.rule_ensemble.transform(X,coefs=rule_coefs)
             if X_rules.shape[0] >0:
                 X_concat = np.concatenate((X_concat, X_rules), axis=1)
@@ -510,8 +476,8 @@ class RuleFit(BaseEstimator, TransformerMixin):
         for i in range(0, len(self.rule_ensemble.rules)):
             rule = rule_ensemble[i]
             coef=self.lscv.coef_[i + n_features]
-            output_rules += [(rule.__str__(), 'rule', coef,  rule.support,rule.rule_direction)]
-        rules = pd.DataFrame(output_rules, columns=["rule", "type","coef", "support","dirn"])
+            output_rules += [(rule.__str__(), 'rule', coef,  rule.support)]
+        rules = pd.DataFrame(output_rules, columns=["rule", "type","coef", "support"])
         if exclude_zero_coef:
             rules = rules.ix[rules.coef != 0]
         return rules

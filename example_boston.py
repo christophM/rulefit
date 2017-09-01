@@ -12,21 +12,14 @@ X = boston_data.drop("medv", axis=1)
 features = X.columns
 X = X.as_matrix()
 
-typ='classifier'
-use_mt_feats=True
+typ='classifier' #regressor or classifier
 
-if use_mt_feats:
-    incr_feats=[6,9]
-    decr_feats=[1,8,12,13]
-else:
-    incr_feats=None
-    decr_feats=None
         
 if typ=='regressor':
 
     rf = RuleFit(tree_size=4,sample_fract='default',max_rules=2000,
              memory_par=0.01,
-             tree_generator=None,n_feats=X.shape[1],incr_feats=incr_feats,decr_feats=decr_feats,
+             tree_generator=None,n_feats=X.shape[1],
             rfmode='regress',lin_trim_quantile=0.025,
             lin_standardise=True, exp_rand_tree_size=True,random_state=1) 
     rf.fit(X, y, feature_names=features)
@@ -37,7 +30,7 @@ elif typ=='classifier':
     N=X.shape[0]
     rf = RuleFit(tree_size=4,sample_fract='default',max_rules=2000,
                  memory_par=0.01,
-                 tree_generator=None,n_feats=X.shape[1],incr_feats=incr_feats,decr_feats=decr_feats,
+                 tree_generator=None,n_feats=X.shape[1],
                 rfmode='classify',lin_trim_quantile=0.025,
                 lin_standardise=True, exp_rand_tree_size=True,random_state=1) 
     rf.fit(X, y_class, feature_names=features)
