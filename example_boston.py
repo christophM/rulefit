@@ -12,7 +12,7 @@ X = boston_data.drop("medv", axis=1)
 features = X.columns
 X = X.as_matrix()
 
-typ='regressor' #regressor or classifier
+typ='classifier' #regressor or classifier
 
 if typ=='regressor':
     rf = RuleFit(tree_size=4,sample_fract='default',max_rules=2000,

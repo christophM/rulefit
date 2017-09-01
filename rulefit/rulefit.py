@@ -168,11 +168,9 @@ def extract_rules_from_tree(tree, feature_names=None):
                                            support = tree.n_node_samples[node_id] / float(tree.n_node_samples[0]),
                                            feature_name=feature_name)
             new_conditions = conditions + [rule_condition]
-            #new_rule = Rule(new_conditions,tree.value[node_id][0][0])
-            #rules.update([new_rule])
         else:
             new_conditions = []
-                ## if not terminal node
+        ## if not terminal node
         if tree.children_left[node_id] != tree.children_right[node_id]: #not tree.feature[node_id] == -2:
             feature = tree.feature[node_id]
             threshold = tree.threshold[node_id]
@@ -187,7 +185,7 @@ def extract_rules_from_tree(tree, feature_names=None):
                 new_rule = Rule(new_conditions,tree.value[node_id][0][0])
                 rules.update([new_rule])
             else:
-                print('********** WHAT THE??? ****** ' + str(tree.node_count))
+                pass #tree only has a root node!
             return None
 
     traverse_nodes()
@@ -361,7 +359,6 @@ class RuleFit(BaseEstimator, TransformerMixin):
                     i=i+1
                 tree_sizes=tree_sizes[0:i]
                 self.tree_generator.set_params(warm_start=True) 
-    #            num_rules=0
                 for i_size in np.arange(len(tree_sizes)):
                     size=tree_sizes[i_size]
                     self.tree_generator.set_params(n_estimators=len(self.tree_generator.estimators_)+1)
@@ -369,13 +366,6 @@ class RuleFit(BaseEstimator, TransformerMixin):
                     self.tree_generator.set_params(random_state=i_size+self.random_state) # warm_state=True seems to reset random_state, such that the trees are highly correlated, unless we manually change the random_sate here.
                     self.tree_generator.get_params()['n_estimators']
                     self.tree_generator.fit(np.copy(X, order='C'), np.copy(y, order='C'))
-                    # count leaves (a check)
-    #                tree_=self.tree_generator.estimators_[j_][0].tree_
-    #                test_=tree_.children_left+ tree_.children_left
-    #                num_leaves=len(test_[test_==-2])
-    #                num_rules=num_rules+mean_leaves
-    #            print('num rules: ' + str(num_rules))
-    #                print('tree_size: ' + str(size) + ' mean actual number of leaf nodes: ' + str(mean_leaves) + ' for ' + str(cnt)+ ' trees')
                 self.tree_generator.set_params(warm_start=False) 
             tree_list = self.tree_generator.estimators_
             if isinstance(self.tree_generator, RandomForestRegressor) or isinstance(self.tree_generator, RandomForestClassifier):
