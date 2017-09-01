@@ -290,7 +290,27 @@ class RuleFit(BaseEstimator, TransformerMixin):
 
     Parameters
     ----------
-        tree_generator: object GradientBoostingRegressor or GradientBoostingClassifier, optional (default=None)
+        tree_size:      Number of terminal nodes in generated trees. If exp_rand_tree_size=True, 
+                        this will be the mean number of terminal nodes.
+        sample_fract:   fraction of randomly chosen training observations used to produce each tree. 
+                        FP 2004 (Sec. 2)
+        max_rules:      approximate total number of rules generated for fitting. Note that actual
+                        number of rules will usually be lower than this due to duplicates.
+        memory_par:     scale multiplier (shrinkage factor) applied to each new tree when 
+                        sequentially induced. FP 2004 (Sec. 2)
+        rfmode:         'regress' for regression or 'classify' for binary classification.
+        lin_standardise: If True, the linear terms will be standardised as per Friedman Sec 3.2
+                        by multiplying the winsorised variable by 0.4/stdev.
+        lin_trim_quantile: If lin_standardise is True, this quantile will be used to trim linear 
+                        terms before standardisation.
+        exp_rand_tree_size: If True, each boosted tree will have a different maximum number of 
+                        terminal nodes based on an exponential distribution about tree_size. 
+                        (Friedman Sec 3.3)
+        model_type:     'r': rules only; 'l': linear terms only; 'rl': both rules and linear terms
+        random_state:   Integer to initialise random objects and provide repeatability.
+        tree_generator: Optional: this object will be used as provided to generate the rules. 
+                        This will override almost all the other properties above. 
+                        Must be GradientBoostingRegressor or GradientBoostingClassifier, optional (default=None)
 
     Attributes
     ----------
@@ -303,7 +323,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
     """
     def __init__(self,tree_size=4,sample_fract='default',max_rules=2000,
                  memory_par=0.01,
-                 tree_generator=None,n_feats=None,
+                 tree_generator=None,
                 rfmode='regress',lin_trim_quantile=0.025,
                 lin_standardise=True, exp_rand_tree_size=True,
                 model_type='rl',random_state=None):

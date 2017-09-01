@@ -19,7 +19,7 @@ if typ=='regressor':
 
     rf = RuleFit(tree_size=4,sample_fract='default',max_rules=2000,
              memory_par=0.01,
-             tree_generator=None,n_feats=X.shape[1],
+             tree_generator=None,
             rfmode='regress',lin_trim_quantile=0.025,
             lin_standardise=True, exp_rand_tree_size=True,random_state=1) 
     rf.fit(X, y, feature_names=features)
@@ -30,12 +30,12 @@ elif typ=='classifier':
     N=X.shape[0]
     rf = RuleFit(tree_size=4,sample_fract='default',max_rules=2000,
                  memory_par=0.01,
-                 tree_generator=None,n_feats=X.shape[1],
+                 tree_generator=None,
                 rfmode='classify',lin_trim_quantile=0.025,
                 lin_standardise=True, exp_rand_tree_size=True,random_state=1) 
     rf.fit(X, y_class, feature_names=features)
     
-res1=rf.predict(X)
+y_pred=rf.predict(X)
 rules = rf.get_rules()
 
 rules = rules[rules.coef != 0].sort_values(by="support")
