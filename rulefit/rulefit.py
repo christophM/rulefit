@@ -15,7 +15,7 @@ import numpy as np
 from sklearn.base import BaseEstimator
 from sklearn.base import TransformerMixin
 from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier, RandomForestRegressor, RandomForestClassifier
-from sklearn.linear_model import LassoCV
+from sklearn.linear_model import LassoCV, LogisticRegressionCV
 from functools import reduce
 
 class RuleCondition():
@@ -276,11 +276,15 @@ class RuleFit(BaseEstimator, TransformerMixin):
         else:
             X_concat = np.concatenate((X, X_rules), axis=1)
 
-        ## initialise Lasso
-        self.lscv = LassoCV()
+        ## initialise linear model for learning task
+        if type(self.tree_generator) not in [GradientBoostingRegressor,
+                                             RandomForestRegressor]
+            self.lmcv = LassoCV()
+        else:
+            self.lmcv = LogisticRegressionCV()
 
-        ## fit Lasso
-        self.lscv.fit(X_concat, y)
+        ## fit linear model
+        self.lmcv.fit(X_concat, y)
         return self
 
     def predict(self, X):
@@ -291,7 +295,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
         X_rules = self.rule_ensemble.transform(X)
         X_concat = np.concatenate((X, X_rules), axis=1)
 
-        return self.lscv.predict(X_concat)
+        return self.lmcv.predict(X_concat)
 
     def transform(self, X=None, y=None):
         """Transform dataset.
@@ -324,16 +328,16 @@ class RuleFit(BaseEstimator, TransformerMixin):
                data set (X)
         """
 
-        n_features= len(self.lscv.coef_) - len(self.rule_ensemble.rules)
+        n_features= len(self.lmcv.coef_) - len(self.rule_ensemble.rules)
         rule_ensemble = list(self.rule_ensemble.rules)
         output_rules = []
         ## Add coefficients for linear effects
         for i in range(0, n_features):
-            output_rules += [(self.feature_names[i], 'linear', self.lscv.coef_[i], 1)]
+            output_rules += [(self.feature_names[i], 'linear', self.lmcv.coef_[i], 1)]
         ## Add rules
         for i in range(0, len(self.rule_ensemble.rules)):
             rule = rule_ensemble[i]
-            output_rules += [(rule.__str__(), 'rule', self.lscv.coef_[i + n_features],  rule.support)]
+            output_rules += [(rule.__str__(), 'rule', self.lmcv.coef_[i + n_features],  rule.support)]
         rules = pd.DataFrame(output_rules, columns=["rule", "type","coef", "support"])
         if exclude_zero_coef:
             rules = rules.ix[rules.coef != 0]
