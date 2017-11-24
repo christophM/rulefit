@@ -67,7 +67,7 @@ rf.predict(X)
 ```python
 rules = rf.get_rules()
 
-rules = rules[rules.coef != 0].sort("support")
+rules = rules[rules.coef != 0].sort_values("support", ascending=False)
 
 print rules
 ```
