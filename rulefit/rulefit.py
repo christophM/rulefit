@@ -78,7 +78,7 @@ class RuleCondition():
 class FriedScale():
     """Performs scaling of linear variables according to Friedman et al. 2005 Sec 5
 
-    Each variable is firsst Winsorized l->l*, then standardised as 0.4 x l* / std(l*)
+    Each variable is first Winsorized l->l*, then standardised as 0.4 x l* / std(l*)
     Warning: this class should not be used directly.
     """    
     def __init__(self,trim_quantile=0.0):
@@ -96,18 +96,25 @@ class FriedScale():
                 upper=np.percentile(X[:,i_col],100-self.trim_quantile*100)
                 self.winsor_lims[:,i_col]=[lower,upper]
         # get multipliers
+        X_trimmed=self.trim(X)
         scale_multipliers=np.ones(X.shape[1])
         for i_col in np.arange(X.shape[1]):
             num_uniq_vals=len(np.unique(X[:,i_col]))
             if num_uniq_vals>2: # don't scale binary variables which are effectively already rules
-                X_col_winsorised=X[:,i_col].copy()
-                X_col_winsorised[X_col_winsorised<self.winsor_lims[0,i_col]]=self.winsor_lims[0,i_col]
-                X_col_winsorised[X_col_winsorised>self.winsor_lims[1,i_col]]=self.winsor_lims[1,i_col]
-                scale_multipliers[i_col]=0.4/np.std(X_col_winsorised)
+                scale_multipliers[i_col]=0.4/np.std(X_trimmed[:,i_col])
         self.scale_multipliers=scale_multipliers
         
-    def scale(self,X):
-        return X*self.scale_multipliers
+    def scale(self,X,winsorize=True):
+        if winsorize:
+            return self.trim(X)*self.scale_multipliers
+        else:
+            return X*self.scale_multipliers
+        
+    def trim(self,X):
+        X_=X.copy()
+        X_=np.where(X>self.winsor_lims[1,:],np.tile(self.winsor_lims[1,:],[X.shape[0],1]),np.where(X<self.winsor_lims[0,:],np.tile(self.winsor_lims[0,:],[X.shape[0],1]),X))
+        return X_
+        
 
 class Rule():
     """Class for binary Rules from list of conditions
@@ -115,10 +122,10 @@ class Rule():
     Warning: this class should not be used directly.
     """
     def __init__(self,
-                 rule_conditions,value):
+                 rule_conditions,prediction_value):
         self.conditions = set(rule_conditions)
         self.support = min([x.support for x in rule_conditions])
-        self.value=value
+        self.prediction_value=prediction_value
         self.rule_direction=None
     def transform(self, X):
         """Transform dataset.
@@ -171,7 +178,7 @@ def extract_rules_from_tree(tree, feature_names=None):
         else:
             new_conditions = []
         ## if not terminal node
-        if tree.children_left[node_id] != tree.children_right[node_id]: #not tree.feature[node_id] == -2:
+        if tree.children_left[node_id] != tree.children_right[node_id]: 
             feature = tree.feature[node_id]
             threshold = tree.threshold[node_id]
             
@@ -182,7 +189,7 @@ def extract_rules_from_tree(tree, feature_names=None):
             traverse_nodes(right_node_id, ">", threshold, feature, new_conditions)
         else: # a leaf node
             if len(new_conditions)>0:
-                new_rule = Rule(new_conditions,tree.value[node_id][0][0])
+                new_rule = Rule(new_conditions,tree.prediction_value[node_id][0][0])
                 rules.update([new_rule])
             else:
                 pass #tree only has a root node!
@@ -242,8 +249,10 @@ class RuleEnsemble():
 
         Parameters
         ----------
-        X: array-like matrix, shape=(n_samples, n_features)
-
+        X:      array-like matrix, shape=(n_samples, n_features)
+        coefs:  (optional) if supplied, this makes the prediction
+                slightly more efficient by setting rules with zero 
+                coefficients to zero without calling Rule.transform().
         Returns
         -------
         X_transformed: array-like matrix, shape=(n_samples, n_out)
@@ -305,7 +314,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
                  tree_generator=None,
                 rfmode='regress',lin_trim_quantile=0.025,
                 lin_standardise=True, exp_rand_tree_size=True,
-                model_type='rl',random_state=None):
+                model_type='rl',Cs=10,cv=3,random_state=None):
         self.tree_generator = tree_generator
         self.rfmode=rfmode
         self.lin_trim_quantile=lin_trim_quantile
@@ -319,6 +328,8 @@ class RuleFit(BaseEstimator, TransformerMixin):
         self.tree_size=tree_size
         self.random_state=random_state
         self.model_type=model_type
+        self.cv=cv
+        self.Cs=Cs
         
     def fit(self, X, y=None, feature_names=None):
         """Fit and estimate linear combination of rule ensemble
@@ -396,12 +407,12 @@ class RuleFit(BaseEstimator, TransformerMixin):
 
         ## fit Lasso
         if self.rfmode=='regress':
-            self.lscv = LassoCV(random_state=self.random_state)
+            self.lscv = LassoCV(Cs=self.Cs,cv=self.cv,random_state=self.random_state)
             self.lscv.fit(X_concat, y)
             self.coef_=self.lscv.coef_
             self.intercept_=self.lscv.intercept_
         else:
-            self.lscv=LogisticRegressionCV(cv=3,penalty='l1',random_state=self.random_state,solver='liblinear')
+            self.lscv=LogisticRegressionCV(Cs=self.Cs,cv=self.cv,penalty='l1',random_state=self.random_state,solver='liblinear')
             self.lscv.fit(X_concat, y)
             self.coef_=self.lscv.coef_[0]
             self.intercept_=self.lscv.intercept_[0]
