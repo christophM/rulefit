@@ -189,7 +189,7 @@ def extract_rules_from_tree(tree, feature_names=None):
             traverse_nodes(right_node_id, ">", threshold, feature, new_conditions)
         else: # a leaf node
             if len(new_conditions)>0:
-                new_rule = Rule(new_conditions,tree.prediction_value[node_id][0][0])
+                new_rule = Rule(new_conditions,tree.value[node_id][0][0])
                 rules.update([new_rule])
             else:
                 pass #tree only has a root node!
@@ -314,7 +314,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
                  tree_generator=None,
                 rfmode='regress',lin_trim_quantile=0.025,
                 lin_standardise=True, exp_rand_tree_size=True,
-                model_type='rl',Cs=10,cv=3,random_state=None):
+                model_type='rl',Cs=None,cv=3,random_state=None):
         self.tree_generator = tree_generator
         self.rfmode=rfmode
         self.lin_trim_quantile=lin_trim_quantile
@@ -370,13 +370,15 @@ class RuleFit(BaseEstimator, TransformerMixin):
                     i=i+1
                 tree_sizes=tree_sizes[0:i]
                 self.tree_generator.set_params(warm_start=True) 
+                curr_est_=0
                 for i_size in np.arange(len(tree_sizes)):
                     size=tree_sizes[i_size]
-                    self.tree_generator.set_params(n_estimators=len(self.tree_generator.estimators_)+1)
+                    self.tree_generator.set_params(n_estimators=curr_est_+1)
                     self.tree_generator.set_params(max_leaf_nodes=size)
                     self.tree_generator.set_params(random_state=i_size+self.random_state) # warm_state=True seems to reset random_state, such that the trees are highly correlated, unless we manually change the random_sate here.
                     self.tree_generator.get_params()['n_estimators']
                     self.tree_generator.fit(np.copy(X, order='C'), np.copy(y, order='C'))
+                    curr_est_=curr_est_+1
                 self.tree_generator.set_params(warm_start=False) 
             tree_list = self.tree_generator.estimators_
             if isinstance(self.tree_generator, RandomForestRegressor) or isinstance(self.tree_generator, RandomForestClassifier):
@@ -407,12 +409,23 @@ class RuleFit(BaseEstimator, TransformerMixin):
 
         ## fit Lasso
         if self.rfmode=='regress':
-            self.lscv = LassoCV(Cs=self.Cs,cv=self.cv,random_state=self.random_state)
+            if self.Cs is None: # use defaultshasattr(self.Cs, "__len__"):
+                n_alphas= 100
+                alphas=None
+            elif hasattr(self.Cs, "__len__"):
+                n_alphas= None
+                alphas=1./self.Cs
+            else:
+                n_alphas= self.Cs
+                alphas=None
+            self.lscv = LassoCV(n_alphas=n_alphas,alphas=alphas,cv=self.cv,random_state=self.random_state)
             self.lscv.fit(X_concat, y)
             self.coef_=self.lscv.coef_
             self.intercept_=self.lscv.intercept_
         else:
-            self.lscv=LogisticRegressionCV(Cs=self.Cs,cv=self.cv,penalty='l1',random_state=self.random_state,solver='liblinear')
+            if self.Cs is None:
+                Cs=10
+            self.lscv=LogisticRegressionCV(Cs=Cs,cv=self.cv,penalty='l1',random_state=self.random_state,solver='liblinear')
             self.lscv.fit(X_concat, y)
             self.coef_=self.lscv.coef_[0]
             self.intercept_=self.lscv.intercept_[0]
