@@ -39,7 +39,7 @@ features = X.columns
 X = X.as_matrix()
 
 rf = RuleFit()
-rf.fit(X, y, feature_names=X.columns)
+rf.fit(X, y, feature_names=features)
 
 ```
 
