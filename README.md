@@ -80,5 +80,10 @@ print rules
 ## Changelog
 All notable changes to this project will be documented here.
 
+### [v0.2] - 2017-11-24
+- Introduces classification for RuleFit
+- Adds scaling of variables (Friedscale)
+- Allows random size trees for creating rules
+
 ### [v0.1] - 2016-06-18
 - Start changelog and versions
