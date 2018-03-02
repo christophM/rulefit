@@ -101,7 +101,7 @@ class FriedScale():
         for i_col in np.arange(X.shape[1]):
             num_uniq_vals=len(np.unique(X[:,i_col]))
             if num_uniq_vals>2: # don't scale binary variables which are effectively already rules
-                scale_multipliers[i_col]=0.4/np.std(X_trimmed[:,i_col])
+                scale_multipliers[i_col]=0.4/(1.0e-12 + np.std(X_trimmed[:,i_col])) 
         self.scale_multipliers=scale_multipliers
         
     def scale(self,X,winsorize=True):
