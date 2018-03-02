@@ -469,7 +469,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
         """
         return self.rule_ensemble.transform(X)
 
-    def get_rules(self, exclude_zero_coef=True):
+    def get_rules(self, exclude_zero_coef=False):
         """Return the estimated rules
 
         Parameters
