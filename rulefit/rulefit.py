@@ -490,9 +490,9 @@ class RuleFit(BaseEstimator, TransformerMixin):
         ## Add coefficients for linear effects
         for i in range(0, n_features):
             if self.lin_standardise:
-                coef=self.coef_[i ]*self.friedscale.scale_multipliers[i]
+                coef=self.coef_[i]*self.friedscale.scale_multipliers[i]
             else:
-                coef=self.coef_[i ]
+                coef=self.coef_[i]
             output_rules += [(self.feature_names[i], 'linear',coef, 1)]
         ## Add rules
         for i in range(0, len(self.rule_ensemble.rules)):
