@@ -101,7 +101,7 @@ class FriedScale():
         for i_col in np.arange(X.shape[1]):
             num_uniq_vals=len(np.unique(X[:,i_col]))
             if num_uniq_vals>2: # don't scale binary variables which are effectively already rules
-                scale_multipliers[i_col]=0.4/(1.0e-12 + np.std(X_trimmed[:,i_col])) 
+                scale_multipliers[i_col]=0.4/(1.0e-12 + np.std(X_trimmed[:,i_col])
         self.scale_multipliers=scale_multipliers
         
     def scale(self,X,winsorize=True):
@@ -426,7 +426,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
         else:
             if self.Cs is None:
                 Cs=10
-            self.lscv=LogisticRegressionCV(Cs=Cs,cv=self.cv,penalty='l1',random_state=self.random_state,solver='liblinear')
+            self.lscv=LogisticRegressionCV(Cs=self.Cs,cv=self.cv,penalty='l1',random_state=self.random_state,solver='liblinear')
             self.lscv.fit(X_concat, y)
             self.coef_=self.lscv.coef_[0]
             self.intercept_=self.lscv.intercept_[0]
