@@ -80,6 +80,9 @@ print rules
 ## Changelog
 All notable changes to this project will be documented here.
 
+### [v0.3] - IN PROGRESS
+-  set default of exclude_zero_coef to False in get_rules(): 
+
 ### [v0.2] - 2017-11-24
 - Introduces classification for RuleFit
 - Adds scaling of variables (Friedscale)
