@@ -81,7 +81,8 @@ print rules
 All notable changes to this project will be documented here.
 
 ### [v0.3] - IN PROGRESS
--  set default of exclude_zero_coef to False in get_rules(): 
+- set default of exclude_zero_coef to False in get_rules(): 
+- syntax fix (Issue 21)
 
 ### [v0.2] - 2017-11-24
 - Introduces classification for RuleFit
