@@ -445,7 +445,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
             else:
                 X_concat = np.concatenate((X_concat,X), axis=1)
         if 'r' in self.model_type:
-            rule_coefs=self.coef_[X.shape[1]:] 
+            rule_coefs=self.coef_[-len(self.rule_ensemble.rules):] 
             if len(rule_coefs)>0:
                 X_rules = self.rule_ensemble.transform(X,coefs=rule_coefs)
                 if X_rules.shape[0] >0:
