@@ -492,7 +492,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
         """
         return self.rule_ensemble.transform(X)
 
-    def get_rules(self, exclude_zero_coef=False, subspace=[]):
+    def get_rules(self, exclude_zero_coef=False, subregion=None):
         """Return the estimated rules
 
         Parameters
@@ -500,8 +500,8 @@ class RuleFit(BaseEstimator, TransformerMixin):
         exclude_zero_coef: If True (default), returns only the rules with an estimated
                            coefficient not equalt to  zero.
 
-        subspace: If empty returns global importances, else returns importance over 
-                           subspace.
+        subregion: If None (default) returns global importances (FP 2004 eq. 28/29), else returns importance over 
+                           subregion of inputs (FP 2004 eq. 30/31/32).
 
         Returns
         -------
@@ -519,10 +519,11 @@ class RuleFit(BaseEstimator, TransformerMixin):
                 coef=self.coef_[i]*self.friedscale.scale_multipliers[i]
             else:
                 coef=self.coef_[i]
-            if subspace == []:
+            if subregion is None:
                 importance = abs(coef)*self.stddev[i]
             else:
-                importance = sum(abs(coef)* abs([ x[i] for x in self.winsorizer.trim(subspace) ] - self.mean[i]))/len(subspace)
+                subregion = np.array(subregion)
+                importance = sum(abs(coef)* abs([ x[i] for x in self.winsorizer.trim(subregion) ] - self.mean[i]))/len(subregion)
             output_rules += [(self.feature_names[i], 'linear',coef, 1, importance)]
 
         ## Add rules
@@ -530,11 +531,11 @@ class RuleFit(BaseEstimator, TransformerMixin):
             rule = rule_ensemble[i]
             coef=self.coef_[i + n_features]
 
-            if subspace == []:
+            if subregion is None:
                 importance = abs(coef)*(rule.support * (1-rule.support))**(1/2)
             else:
-                rkx = rule.transform(subspace)
-                importance = sum(abs(coef) * abs(rkx - rule.support))/len(subspace)
+                rkx = rule.transform(subregion)
+                importance = sum(abs(coef) * abs(rkx - rule.support))/len(subregion)
 
             output_rules += [(rule.__str__(), 'rule', coef,  rule.support, importance)]
         rules = pd.DataFrame(output_rules, columns=["rule", "type","coef", "support", "importance"])
