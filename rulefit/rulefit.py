@@ -75,15 +75,13 @@ class RuleCondition():
         return hash((self.feature_index, self.threshold, self.operator, self.feature_name))
 
 
-class FriedScale():
-    """Performs scaling of linear variables according to Friedman et al. 2005 Sec 5
+class Winsorizer():
+    """Performs Winsorization 1->1*
 
-    Each variable is first Winsorized l->l*, then standardised as 0.4 x l* / std(l*)
     Warning: this class should not be used directly.
     """    
     def __init__(self,trim_quantile=0.0):
         self.trim_quantile=trim_quantile
-        self.scale_multipliers=None
         self.winsor_lims=None
         
     def train(self,X):
@@ -95,8 +93,29 @@ class FriedScale():
                 lower=np.percentile(X[:,i_col],self.trim_quantile*100)
                 upper=np.percentile(X[:,i_col],100-self.trim_quantile*100)
                 self.winsor_lims[:,i_col]=[lower,upper]
+        
+    def trim(self,X):
+        X_=X.copy()
+        X_=np.where(X>self.winsor_lims[1,:],np.tile(self.winsor_lims[1,:],[X.shape[0],1]),np.where(X<self.winsor_lims[0,:],np.tile(self.winsor_lims[0,:],[X.shape[0],1]),X))
+        return X_
+
+class FriedScale():
+    """Performs scaling of linear variables according to Friedman et al. 2005 Sec 5
+
+    Each variable is first Winsorized l->l*, then standardised as 0.4 x l* / std(l*)
+    Warning: this class should not be used directly.
+    """    
+    def __init__(self, winsorizer = None):
+        self.scale_multipliers=None
+        self.winsorizer = winsorizer
+        
+    def train(self,X):
         # get multipliers
-        X_trimmed=self.trim(X)
+        if self.winsorizer != None:
+            X_trimmed= self.winsorizer.trim(X)
+        else:
+            X_trimmed = X
+
         scale_multipliers=np.ones(X.shape[1])
         for i_col in np.arange(X.shape[1]):
             num_uniq_vals=len(np.unique(X[:,i_col]))
@@ -104,16 +123,11 @@ class FriedScale():
                 scale_multipliers[i_col]=0.4/(1.0e-12 + np.std(X_trimmed[:,i_col]))
         self.scale_multipliers=scale_multipliers
         
-    def scale(self,X,winsorize=True):
-        if winsorize:
-            return self.trim(X)*self.scale_multipliers
+    def scale(self,X):
+        if self.winsorizer != None:
+            return self.winsorizer.trim(X)*self.scale_multipliers
         else:
             return X*self.scale_multipliers
-        
-    def trim(self,X):
-        X_=X.copy()
-        X_=np.where(X>self.winsor_lims[1,:],np.tile(self.winsor_lims[1,:],[X.shape[0],1]),np.where(X<self.winsor_lims[0,:],np.tile(self.winsor_lims[0,:],[X.shape[0],1]),X))
-        return X_
         
 
 class Rule():
@@ -319,7 +333,10 @@ class RuleFit(BaseEstimator, TransformerMixin):
         self.rfmode=rfmode
         self.lin_trim_quantile=lin_trim_quantile
         self.lin_standardise=lin_standardise
-        self.friedscale=FriedScale(trim_quantile=lin_trim_quantile)
+        self.winsorizer=Winsorizer(trim_quantile=lin_trim_quantile)
+        self.friedscale=FriedScale(self.winsorizer)
+        self.stddev = None
+        self.mean = None
         self.exp_rand_tree_size=exp_rand_tree_size
         self.max_rules=max_rules
         self.sample_fract=sample_fract 
@@ -394,6 +411,13 @@ class RuleFit(BaseEstimator, TransformerMixin):
         
         ## standardise linear variables if requested (for regression model only)
         if 'l' in self.model_type: 
+
+            ## standard deviation and mean of winsorized features
+            self.winsorizer.train(X)
+            winsorized_X = self.winsorizer.trim(X)
+            self.stddev = np.std(winsorized_X, axis = 0)
+            self.mean = np.mean(winsorized_X, axis = 0)
+
             if self.lin_standardise:
                 self.friedscale.train(X)
                 X_regn=self.friedscale.scale(X)
@@ -468,13 +492,16 @@ class RuleFit(BaseEstimator, TransformerMixin):
         """
         return self.rule_ensemble.transform(X)
 
-    def get_rules(self, exclude_zero_coef=False):
+    def get_rules(self, exclude_zero_coef=False, subregion=None):
         """Return the estimated rules
 
         Parameters
         ----------
         exclude_zero_coef: If True (default), returns only the rules with an estimated
                            coefficient not equalt to  zero.
+
+        subregion: If None (default) returns global importances (FP 2004 eq. 28/29), else returns importance over 
+                           subregion of inputs (FP 2004 eq. 30/31/32).
 
         Returns
         -------
@@ -492,13 +519,26 @@ class RuleFit(BaseEstimator, TransformerMixin):
                 coef=self.coef_[i]*self.friedscale.scale_multipliers[i]
             else:
                 coef=self.coef_[i]
-            output_rules += [(self.feature_names[i], 'linear',coef, 1)]
+            if subregion is None:
+                importance = abs(coef)*self.stddev[i]
+            else:
+                subregion = np.array(subregion)
+                importance = sum(abs(coef)* abs([ x[i] for x in self.winsorizer.trim(subregion) ] - self.mean[i]))/len(subregion)
+            output_rules += [(self.feature_names[i], 'linear',coef, 1, importance)]
+
         ## Add rules
         for i in range(0, len(self.rule_ensemble.rules)):
             rule = rule_ensemble[i]
             coef=self.coef_[i + n_features]
-            output_rules += [(rule.__str__(), 'rule', coef,  rule.support)]
-        rules = pd.DataFrame(output_rules, columns=["rule", "type","coef", "support"])
+
+            if subregion is None:
+                importance = abs(coef)*(rule.support * (1-rule.support))**(1/2)
+            else:
+                rkx = rule.transform(subregion)
+                importance = sum(abs(coef) * abs(rkx - rule.support))/len(subregion)
+
+            output_rules += [(rule.__str__(), 'rule', coef,  rule.support, importance)]
+        rules = pd.DataFrame(output_rules, columns=["rule", "type","coef", "support", "importance"])
         if exclude_zero_coef:
             rules = rules.ix[rules.coef != 0]
         return rules
