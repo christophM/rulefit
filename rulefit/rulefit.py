@@ -317,6 +317,9 @@ class RuleFit(BaseEstimator, TransformerMixin):
                         if the updates are smaller than `tol`, the optimization code checks the dual
                         gap for optimality and continues until it is smaller than `tol`.
         max_iter:       The maximum number of iterations for LassoCV or LogisticRegressionCV.
+        n_jobs:         Number of CPUs to use during the cross validation in LassoCV or
+                        LogisticRegressionCV. None means 1 unless in a joblib.parallel_backend
+                        context. -1 means using all processors.
 
     Attributes
     ----------
@@ -343,6 +346,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
             cv=3,
             tol=0.0001,
             max_iter=None,
+            n_jobs=None,
             random_state=None):
         self.tree_generator = tree_generator
         self.rfmode=rfmode
@@ -364,6 +368,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
         self.tol=tol
         # LassoCV default max_iter is 1000 while LogisticRegressionCV 100.
         self.max_iter=1000 if 'regress' else 100
+        self.n_jobs=n_jobs
         self.Cs=Cs
 
     def fit(self, X, y=None, feature_names=None):
@@ -464,6 +469,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
             self.lscv = LassoCV(
                 n_alphas=n_alphas, alphas=alphas, cv=self.cv,
                 max_iter=self.max_iter, tol=self.tol,
+                n_jobs=self.n_jobs,
                 random_state=self.random_state)
             self.lscv.fit(X_concat, y)
             self.coef_=self.lscv.coef_
@@ -472,8 +478,8 @@ class RuleFit(BaseEstimator, TransformerMixin):
             Cs=10 if self.Cs is None else self.Cs
             self.lscv=LogisticRegressionCV(
                 Cs=Cs, cv=self.cv, penalty='l1', max_iter=self.max_iter,
-                tol=self.tol, random_state=self.random_state,
-                solver='liblinear')
+                tol=self.tol, n_jobs=self.n_jobs,
+                random_state=self.random_state, solver='liblinear')
             self.lscv.fit(X_concat, y)
             self.coef_=self.lscv.coef_[0]
             self.intercept_=self.lscv.intercept_[0]
