@@ -35,10 +35,10 @@ elif typ=='classifier':
                 lin_standardise=True, exp_rand_tree_size=True,random_state=1) 
     rf.fit(X, y_class, feature_names=features)
     y_pred=rf.predict(X)
+    y_proba = rf.predict_proba(X)
     insample_acc=len(y_pred==y_class)/len(y_class)
 rules = rf.get_rules()
 
 rules = rules[rules.coef != 0].sort_values(by="support")
 num_rules_rule=len(rules[rules.type=='rule'])
 num_rules_linear=len(rules[rules.type=='linear'])
-
