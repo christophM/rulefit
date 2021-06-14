@@ -60,9 +60,9 @@ class RuleCondition():
         X_transformed: array-like matrix, shape=(n_samples, 1)
         """
         if self.operator == "<=":
-            res =  1 * (X[:,self.feature_index] <= self.threshold)
+            res =  1 * (X.iloc[:,self.feature_index] <= self.threshold)
         elif self.operator == ">":
-            res = 1 * (X[:,self.feature_index] > self.threshold)
+            res = 1 * (X.iloc[:,self.feature_index] > self.threshold)
         return res
 
     def __eq__(self, other):
