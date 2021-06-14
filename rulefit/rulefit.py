@@ -87,9 +87,9 @@ class Winsorizer():
         self.winsor_lims[0,:]=-np.inf
         if self.trim_quantile>0:
             for i_col in np.arange(X.shape[1]):
-                lower=np.percentile(X[:,i_col],self.trim_quantile*100)
-                upper=np.percentile(X[:,i_col],100-self.trim_quantile*100)
-                self.winsor_lims[:,i_col]=[lower,upper]
+                lower=np.percentile(X.iloc[:,i_col],self.trim_quantile*100)
+                upper=np.percentile(X.iloc[:,i_col],100-self.trim_quantile*100)
+                self.winsor_lims.iloc[:,i_col]=[lower,upper]
 
     def trim(self,X):
         X_=X.copy()
@@ -115,7 +115,7 @@ class FriedScale():
 
         scale_multipliers=np.ones(X.shape[1])
         for i_col in np.arange(X.shape[1]):
-            num_uniq_vals=len(np.unique(X[:,i_col]))
+            num_uniq_vals=len(np.unique(X.iloc[:,i_col]))
             if num_uniq_vals>2: # don't scale binary variables which are effectively already rules
                 scale_multipliers[i_col]=0.4/(1.0e-12 + np.std(X_trimmed[:,i_col]))
         self.scale_multipliers=scale_multipliers
