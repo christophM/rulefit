@@ -89,7 +89,7 @@ class Winsorizer():
             for i_col in np.arange(X.shape[1]):
                 lower=np.percentile(X.iloc[:,i_col],self.trim_quantile*100)
                 upper=np.percentile(X.iloc[:,i_col],100-self.trim_quantile*100)
-                self.winsor_lims.iloc[:,i_col]=[lower,upper]
+                self.winsor_lims[:,i_col]=[lower,upper]
 
     def trim(self,X):
         X_=X.copy()
