@@ -1,3 +1,6 @@
+
+! This package is no longer actively maintained. If you are interested in maintaining this package, please feel free to reach out to me via Github issue !
+
 # RuleFit
 Implementation of a rule based prediction algorithm based on [the rulefit algorithm from Friedman and Popescu (PDF)](http://statweb.stanford.edu/~jhf/ftp/RuleFit.pdf)
 
