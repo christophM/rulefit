@@ -1,4 +1,4 @@
-from rulefit import FriedScale, RuleCondition, Rule, RuleEnsemble, RuleFit
+from rulefit import FriedScale, RuleCondition, Rule, RuleEnsemble, RuleFit, Winsorizer
 import numpy as np
 
 
@@ -52,9 +52,11 @@ def test_fried_scale():
     x_scale_test[5:10,0]=100
     x_scale_test[10:55,0]=1
     x_scale_test[5:55,1]=1 # winsorised version of first column at trim=0.1: note, will not be scaled because it is already an indicator function, as per FP004
-    fs=FriedScale(trim_quantile=0.1)
+    ws = Winsorizer(trim_quantile=0.1)
+    ws.train(x_scale_test)
+    fs=FriedScale(winsorizer=ws)
     fs.train(x_scale_test)
-    np.testing.assert_array_equal(fs.scale(x_scale_test),
+    np.testing.assert_array_almost_equal(fs.scale(x_scale_test),
                                   np.hstack([x_scale_test[:,1].reshape([-1,1])*0.4/np.std(x_scale_test[:,1]),x_scale_test[:,1].reshape([-1,1])]))
 
 def run_all_tests():

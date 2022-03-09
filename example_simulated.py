@@ -22,8 +22,9 @@ X = pd.DataFrame({'x1': x1, 'x2': x2, 'x3': x3, 'x4': x4})
 
 rf = RuleFit()
 rf.fit(X.values, y, X.columns)
-rf.fit(X.values, y)
+
 
 rules = rf.get_rules(exclude_zero_coef=True)
 
-print(rules)
+print(rules.sort_values('importance', ascending=False))
+

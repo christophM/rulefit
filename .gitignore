@@ -58,3 +58,10 @@ docs/_build/
 
 # PyBuilder
 target/
+/.idea/modules.xml
+/.idea/.gitignore
+/.idea/misc.xml
+/.idea/other.xml
+/.idea/inspectionProfiles/profiles_settings.xml
+/.idea/rulefit.iml
+/.idea/vcs.xml
