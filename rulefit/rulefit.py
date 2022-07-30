@@ -17,6 +17,7 @@ from sklearn.base import TransformerMixin
 from sklearn.ensemble import GradientBoostingRegressor, GradientBoostingClassifier, RandomForestRegressor, RandomForestClassifier
 from sklearn.linear_model import LassoCV,LogisticRegressionCV
 from functools import reduce
+from ordered_set import OrderedSet
 
 
 class RuleCondition():
@@ -134,7 +135,7 @@ class Rule():
     """
     def __init__(self,
                  rule_conditions,prediction_value):
-        self.conditions = set(rule_conditions)
+        self.conditions = OrderedSet(rule_conditions)
         self.support = min([x.support for x in rule_conditions])
         self.prediction_value=prediction_value
         self.rule_direction=None
@@ -168,7 +169,7 @@ class Rule():
 def extract_rules_from_tree(tree, feature_names=None):
     """Helper to turn a tree into as set of rules
     """
-    rules = set()
+    rules = OrderedSet()
 
     def traverse_nodes(node_id=0,
                        operator=None,
@@ -236,7 +237,7 @@ class RuleEnsemble():
                  feature_names=None):
         self.tree_list = tree_list
         self.feature_names = feature_names
-        self.rules = set()
+        self.rules = OrderedSet()
         ## TODO: Move this out of __init__
         self._extract_rules()
         self.rules=list(self.rules)
