@@ -387,7 +387,25 @@ class RuleFit(BaseEstimator, TransformerMixin):
                     self.tree_generator = GradientBoostingRegressor(n_estimators=n_estimators_default, max_leaf_nodes=self.tree_size, learning_rate=self.memory_par,subsample=self.sample_fract_,random_state=self.random_state,max_depth=100)
                 else:
                     self.tree_generator =GradientBoostingClassifier(n_estimators=n_estimators_default, max_leaf_nodes=self.tree_size, learning_rate=self.memory_par,subsample=self.sample_fract_,random_state=self.random_state,max_depth=100)
-
+            else:
+                # delete (initialize) attribute of learned tree_generator
+                delete_attributes_ = ["feature_importances_",
+                                        "oob_improvement_",
+                                        "train_score_",
+                                        "loss_",
+                                        "init_",
+                                        "estimators_",
+                                        "n_estimators_",
+                                        "n_features_in_",
+                                        "feature_names_in_",
+                                        "max_features_",
+                                        "classes_",
+                                        "n_classes_"
+                                        ]
+                for attribute in delete_attributes_:
+                    if hasattr(self.tree_generator, attribute):
+                        delattr(self.tree_generator, attribute)
+                        print(f"delete {attribute}")
             if   self.rfmode=='regress':
                 if type(self.tree_generator) not in [GradientBoostingRegressor,RandomForestRegressor]:
                     raise ValueError("RuleFit only works with RandomForest and BoostingRegressor")
