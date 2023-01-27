@@ -364,7 +364,10 @@ class RuleFit(BaseEstimator, TransformerMixin):
         self.cv=cv
         self.tol=tol
         # LassoCV default max_iter is 1000 while LogisticRegressionCV 100.
-        self.max_iter=1000 if 'regress' else 100
+        if max_iter is None:
+            self.max_iter=1000 if 'regress' else 100
+        else:
+            self.max_iter = max_iter
         self.n_jobs=n_jobs
         self.Cs=Cs
 
@@ -389,18 +392,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
                     self.tree_generator =GradientBoostingClassifier(n_estimators=n_estimators_default, max_leaf_nodes=self.tree_size, learning_rate=self.memory_par,subsample=self.sample_fract_,random_state=self.random_state,max_depth=100)
             else:
                 # delete (initialize) attribute of learned tree_generator
-                delete_attributes_ = ["feature_importances_",
-                                        "oob_improvement_",
-                                        "train_score_",
-                                        "loss_",
-                                        "init_",
-                                        "estimators_",
-                                        "n_estimators_",
-                                        "n_features_in_",
-                                        "feature_names_in_",
-                                        "max_features_",
-                                        "classes_",
-                                        "n_classes_"
+                delete_attributes_ = [  "estimators_",
                                         ]
                 for attribute in delete_attributes_:
                     if hasattr(self.tree_generator, attribute):
