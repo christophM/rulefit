@@ -382,11 +382,7 @@ class RuleFit(BaseEstimator, TransformerMixin):
         self.model_type = model_type
         self.cv = cv
         self.tol = tol
-        # LassoCV default max_iter is 1000 while LogisticRegressionCV 100.
-        if max_iter is None:
-            self.max_iter = 1000 if "regress" else 100
-        else:
-            self.max_iter = max_iter
+        self.max_iter = max_iter
         self.n_jobs = n_jobs
         self.Cs = Cs
 
@@ -676,7 +672,7 @@ class RuleFitRegressor(RuleFit, RegressorMixin, TransformerMixin):
         Cs=None,
         cv=3,
         tol=0.0001,
-        max_iter=1000,
+        max_iter=10000,
         n_jobs=None,
         random_state=None,
     ):
@@ -722,7 +718,7 @@ class RuleFitClassifier(RuleFit, ClassifierMixin, TransformerMixin):
         Cs=None,
         cv=3,
         tol=0.0001,
-        max_iter=1000,
+        max_iter=100,
         n_jobs=None,
         random_state=None,
     ):
