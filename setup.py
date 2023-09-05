@@ -11,5 +11,6 @@ setup(name='RuleFit',
       packages=['rulefit'],
       install_requires=['scikit-learn>=0.20.2',
                         'numpy>=1.16.1',
-                        'pandas>=0.24.1']
+                        'pandas>=0.24.1',
+                        'ordered-set>=4.1.0']
      )
